@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shorty</title>
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui, Arial, sans-serif; color: #222; background: #fff; }
+  main { max-width: 520px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  p { margin: 0 0 16px; color: #666; }
+  .row { display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; padding: 10px; font: inherit; border: 1px solid #ccc; border-radius: 4px; }
+  button { padding: 10px 16px; font: inherit; color: #fff; background: #222; border: 0; border-radius: 4px; cursor: pointer; }
+  #msg { margin: 12px 0; min-height: 24px; color: #666; }
+  #result { display: none; margin: 16px 0; padding: 12px; border: 1px solid #ccc; border-radius: 4px; }
+  #result a { color: #222; word-break: break-all; }
+  h2 { font-size: 18px; margin: 32px 0 8px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 8px 0; border-top: 1px solid #ccc; font-size: 14px; word-break: break-all; }
+  li span { color: #666; }
+  li a { color: #222; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Shorty</h1>
+  <p>Paste a long link. Get a short one.</p>
+  <div class="row">
+    <input id="url" type="text" placeholder="https://example.com/very/long/link" autocomplete="off">
+    <button id="go">Shorten</button>
+  </div>
+  <div id="msg"></div>
+  <div id="result">
+    <div>Your short link:</div>
+    <a id="short" href="#"></a>
+    <div style="margin-top:8px"><button id="copy" style="padding:4px 10px;font-size:14px">Copy</button></div>
+  </div>
+  <h2>Recent links</h2>
+  <ul id="list"></ul>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  async function loadRecent() {
+    const res = await fetch('/api/links');
+    const links = await res.json();
+    const ul = $('list');
+    ul.innerHTML = '';
+    if (!links.length) {
+      const li = document.createElement('li');
+      li.textContent = 'Nothing yet.';
+      ul.appendChild(li);
+      return;
+    }
+    links.forEach((l) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = l.shortUrl;
+      a.textContent = l.shortUrl;
+      const s = document.createElement('span');
+      s.textContent = ' → ' + l.url;
+      li.append(a, s);
+      ul.appendChild(li);
+    });
+  }
+
+  async function shorten() {
+    $('msg').textContent = 'Working…';
+    const res = await fetch('/api/shorten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: $('url').value })
+    });
+    if (!res.ok) {
+      $('msg').textContent = 'Please enter a valid web link.';
+      return;
+    }
+    const data = await res.json();
+    $('msg').textContent = '';
+    $('short').textContent = data.shortUrl;
+    $('short').href = data.shortUrl;
+    $('result').style.display = 'block';
+    loadRecent();
+  }
+
+  $('go').onclick = shorten;
+  $('url').onkeydown = (e) => { if (e.key === 'Enter') shorten(); };
+  $('copy').onclick = async () => {
+    await navigator.clipboard.writeText($('short').textContent);
+    $('msg').textContent = 'Copied.';
+  };
+  loadRecent();
+</script>
+</body>
+</html>
